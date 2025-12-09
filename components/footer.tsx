@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 
 export function Footer() {
   return (
@@ -6,7 +7,7 @@ export function Footer() {
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
           <div>
-            <h3 className="text-lg font-semibold text-[#a855f7]">Memekipedia</h3>
+            <Image src="/logo-new.png" alt="Memekipedia" width={150} height={40} />
             <p className="mt-2 text-sm text-slate-400">
               A Web3-powered wiki platform for the community, by the community.
             </p>

@@ -23,18 +23,16 @@ export function MediaUploadArea({
 
   const validateFile = (file: File) => {
     const isImage = file.type.startsWith('image/')
-    const isVideo = file.type.startsWith('video/')
 
-    if (!isImage && !isVideo) {
-      alert('Only image and video files are allowed')
+    if (!isImage) {
+      alert('Only image files are allowed')
       return false
     }
 
-    const maxSize = isImage ? maxSizeImage : maxSizeVideo
     const fileSizeMB = file.size / (1024 * 1024)
 
-    if (fileSizeMB > maxSize) {
-      alert(`${isImage ? 'Image' : 'Video'} size must be less than ${maxSize}MB`)
+    if (fileSizeMB > maxSizeImage) {
+      alert(`Image size must be less than ${maxSizeImage}MB`)
       return false
     }
 
@@ -104,9 +102,16 @@ export function MediaUploadArea({
         <div className="relative rounded-lg border-2 border-slate-700 bg-slate-900/50 p-4">
           <div className="flex items-center gap-4">
             <img
-              src={`https://ipfs.io/ipfs/${value}`}
+              src={`https://gateway.pinata.cloud/ipfs/${value}`}
               alt="Uploaded media"
-              className="h-24 w-24 rounded-lg object-cover"
+              className="h-24 w-24 rounded-lg object-cover bg-slate-800"
+              onError={(e) => {
+                // Fallback to ipfs.io gateway if pinata fails
+                const target = e.target as HTMLImageElement
+                if (target.src.includes('pinata')) {
+                  target.src = `https://ipfs.io/ipfs/${value}`
+                }
+              }}
             />
             <div className="flex-1">
               <p className="text-sm font-medium text-slate-100">Image uploaded successfully</p>
@@ -125,7 +130,7 @@ export function MediaUploadArea({
           <input
             ref={inputRef}
             type="file"
-            accept="image/jpg,image/jpeg,image/gif,image/png,video/mp4"
+            accept="image/jpg,image/jpeg,image/gif,image/png,image/webp"
             onChange={handleFileChange}
             className="hidden"
             id="media-upload-input"
@@ -134,32 +139,33 @@ export function MediaUploadArea({
       ) : (
         // Show upload area
         <div
-          className={`relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-12 transition-colors ${
+          className={`relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-12 transition-colors cursor-pointer ${
             dragActive
               ? 'border-primary bg-primary/5'
-              : 'border-slate-700 bg-slate-900/50'
+              : 'border-slate-700 bg-slate-900/50 hover:border-slate-600'
           } ${uploading ? 'pointer-events-none opacity-50' : ''}`}
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
           onDragOver={handleDrag}
           onDrop={handleDrop}
+          onClick={() => inputRef.current?.click()}
         >
           <input
             ref={inputRef}
             type="file"
-            accept="image/jpg,image/jpeg,image/gif,image/png,video/mp4"
+            accept="image/jpg,image/jpeg,image/gif,image/png,image/webp"
             onChange={handleFileChange}
             className="hidden"
             id="media-upload-input"
           />
 
-          <div className="flex flex-col items-center text-center">
+          <div className="flex flex-col items-center text-center pointer-events-none">
             <div className="mb-4 rounded-lg border-2 border-slate-700 p-4">
               <ImageIcon className="h-8 w-8 text-slate-400" />
             </div>
 
             <h3 className="mb-2 text-lg font-semibold text-slate-100">
-              Select video or image to upload
+              Select image to upload
             </h3>
             <p className="mb-4 text-sm text-slate-400">
               or drag and drop it here
@@ -169,10 +175,9 @@ export function MediaUploadArea({
               type="button"
               size="lg"
               disabled={uploading}
-              onClick={() => inputRef.current?.click()}
-              className="bg-[#8cf1c8] text-slate-900 hover:bg-[#7ce0b7]"
+              className="bg-[#8cf1c8] text-slate-900 hover:bg-[#7ce0b7] pointer-events-none"
             >
-              {uploading ? 'Uploading...' : 'Log in'}
+              {uploading ? 'Uploading...' : 'Select Image'}
             </Button>
           </div>
         </div>
@@ -189,8 +194,7 @@ export function MediaUploadArea({
             <h4 className="font-semibold text-slate-100">File size and type</h4>
           </div>
           <ul className="space-y-1 text-sm text-slate-400">
-            <li>• Image - max {maxSizeImage}mb. '.jpg', '.gif' or '.png' recommended</li>
-            <li>• Video - max {maxSizeVideo}mb. '.mp4' recommended</li>
+            <li>• Image - max {maxSizeImage}mb. '.jpg', '.gif', '.png' or '.webp' recommended</li>
           </ul>
         </div>
 
@@ -203,7 +207,6 @@ export function MediaUploadArea({
           </div>
           <ul className="space-y-1 text-sm text-slate-400">
             <li>• Image - min. 1000×1000px, 1:1 square recommended</li>
-            <li>• Video - 16:9 or 9:16, 1080p+ recommended</li>
           </ul>
         </div>
       </div>

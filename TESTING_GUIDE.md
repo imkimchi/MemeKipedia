@@ -1,34 +1,29 @@
-# End-to-End Testing Guide - Wiki Memecoin Trading Feature
+# Complete Buy/Sell Feature Testing Guide - A to Z
 
 ## Overview
 
-This guide provides a comprehensive testing checklist for the wiki memecoin trading feature on Memecore Insectarium testnet.
+This comprehensive guide walks you through testing the buy/sell functionality on wiki pages from setup to execution. Follow these steps to test real trading (not automated tests) on the Memecore Insectarium testnet.
+
+**Time Required:** ~25 minutes
+**Difficulty:** Beginner-friendly
 
 ---
 
 ## Prerequisites
 
-### 1. Environment Setup
+### 1. Already Deployed Contracts ✅
+
+Good news! The contracts are already deployed on Memecore Insectarium:
 
 ```bash
-# .env.local configuration
-MEMECORE_PRIVATE_KEY=0x...  # Your deployer wallet private key
-MEMECORE_NETWORK=insectarium
-MRC20_BYTECODE=0x...  # Compiled MRC-20 contract bytecode
-
-# AMM Contracts (deploy these first)
-MEMESWAP_FACTORY_ADDRESS=0x...
-MEMESWAP_ROUTER_ADDRESS=0x...
-M_TOKEN_ADDRESS=0x...  # Native $M token on testnet
-
-# Liquidity Settings
-INITIAL_LIQUIDITY_M=100
-INITIAL_LIQUIDITY_TOKENS=500000
-
-# Frontend (public)
-NEXT_PUBLIC_MEMESWAP_ROUTER_ADDRESS=0x...
-NEXT_PUBLIC_M_TOKEN_ADDRESS=0x...
+# These are already in your .env.local
+NEXT_PUBLIC_M_TOKEN_ADDRESS=0x15A89cb09A7Bbe07E913Ce75d44Aaeaa8c3ed1ac
+NEXT_PUBLIC_MEMESWAP_FACTORY_ADDRESS=0x207F61a1B85AdeD5e9F38D6f64C5d017a3a38981
+NEXT_PUBLIC_MEMESWAP_ROUTER_ADDRESS=0xAE62769D66C29310b5Fe5C87d7c3E5904Deeb298
+MEMECORE_PRIVATE_KEY=0x2d3cbcbf83ca2d2ffa364836526db748c0d72f8bcfcf1853715888b71be99691
 ```
+
+⚠️ **Important:** The MEMECORE_PRIVATE_KEY above is for TESTNET ONLY. Never use on mainnet!
 
 ### 2. Get Testnet Tokens
 
@@ -142,43 +137,79 @@ open https://insectarium.blockscout.memecore.com/address/$TOKEN_ADDRESS
 
 ### Phase 3: Liquidity Pool Creation
 
-#### Test 3.1: Create Pool and Seed Liquidity
+#### Test 3.1: Create Pool and Add Liquidity
 
-**Objective:** Create DOGWAR/$M pool with initial liquidity
+**Objective:** Create trading pool for your wiki token using the new add-liquidity script.
+
+⚠️ **CRITICAL STEP:** Without liquidity, trading won't work! This is the most important step.
 
 **Steps:**
 
-1. **Run pool creation script:**
-   ```typescript
-   import { createPoolAndAddLiquidity } from '@/lib/memecore/pool-creator'
+1. **Get your wiki token address** from the wiki page after creation (Step 2.1)
 
-   const result = await createPoolAndAddLiquidity({
-     tokenAddress: '0x...', // DOGWAR token address
-     liquidityM: '100',      // 100 $M
-     liquidityTokens: '500000', // 500k DOGWAR
-     network: 'insectarium',
-   })
-
-   console.log('Pool created:', result)
+2. **Run the liquidity script:**
+   ```bash
+   cd contracts
+   npx hardhat run scripts/add-liquidity.ts \
+     --network memecoreInsectarium \
+     --token YOUR_WIKI_TOKEN_ADDRESS
    ```
 
-2. **Verify pool creation:**
-   - Check factory for pair address
-   - Verify reserves match input
+   Replace `YOUR_WIKI_TOKEN_ADDRESS` with the actual token address.
+
+3. **Script will automatically:**
+   - Check your token balances
+   - Approve tokens for the router
+   - Create the trading pair (if doesn't exist)
+   - Add liquidity (10% of M balance, 50% of wiki tokens)
+   - Output pool address and initial price
+
+**Example Output:**
+```
+=== Configuration ===
+M Token: 0x15A89cb09A7Bbe07E913Ce75d44Aaeaa8c3ed1ac
+Wiki Token: 0x1234abcd...
+Router: 0xAE62769D66C29310b5Fe5C87d7c3E5904Deeb298
+
+=== Wallet Balances ===
+M tokens: 1000.0
+Wiki tokens: 1000000000.0
+
+=== Liquidity to Add ===
+M tokens: 100.0
+Wiki tokens: 500000000.0
+
+✅ Liquidity added successfully!
+
+=== Pool Created ===
+Pair Address: 0xABCD1234...
+Explorer: https://insectarium.blockscout.memecore.com/address/0xABCD1234...
+
+=== Pool Reserves ===
+M tokens: 100.0
+Wiki tokens: 500000000.0
+Price: 1 M = 5000000 WIKI
+Price: 1 WIKI = 0.0000002 M
+
+=== Next Steps ===
+1. Trading is now enabled for this token!
+2. Visit the wiki page and test buy/sell
+3. Make sure you have M tokens in your wallet to buy
+4. Pool address: 0xABCD1234...
+```
 
 **Expected Result:**
 - ✅ Pool created successfully
-- ✅ Pool address returned
-- ✅ 100 $M deposited
-- ✅ 500,000 DOGWAR deposited
-- ✅ LP tokens minted to deployer
-- ✅ Initial price: 1 DOGWAR = 0.0002 $M
+- ✅ 100 M tokens deposited
+- ✅ 500,000,000 wiki tokens deposited
+- ✅ LP tokens minted to your wallet
+- ✅ Initial price calculated and displayed
+- ✅ Pool address saved for wiki page
 
 **Verification:**
-```bash
-# Check pool reserves
-cast call $POOL_ADDRESS "getReserves()" \
-  --rpc-url https://rpc.insectarium.memecore.net
+Visit the pool on block explorer:
+```
+https://insectarium.blockscout.memecore.com/address/POOL_ADDRESS
 ```
 
 ---
@@ -189,22 +220,29 @@ cast call $POOL_ADDRESS "getReserves()" \
 
 **Steps:**
 
-1. **Navigate to wiki detail page:**
-   ```
-   http://localhost:3000/wiki/[wiki-id]
+1. **Start the development server** (if not running):
+   ```bash
+   npm run dev
    ```
 
-2. **Verify UI elements:**
+2. **Navigate to wiki detail page:**
+   ```
+   http://localhost:3000/wiki/YOUR_WIKI_ID
+   ```
+
+3. **Verify UI elements:**
    - Wiki content displayed
-   - Token stats card visible
-   - Price chart rendered
-   - Trading panel visible
+   - Token stats card visible (symbol, address, supply)
+   - Trading panel visible on right side
+   - Pool address loaded (not 0x000...)
+   - Buy/Sell tabs available
 
 **Expected Result:**
 - ✅ Page loads without errors
-- ✅ Token stats show correct data
-- ✅ Chart shows initial price
-- ✅ Buy/Sell buttons visible
+- ✅ Token information displays correctly
+- ✅ Trading panel shows "Buy" and "Sell" buttons
+- ✅ Pool detected (no "Trading Not Available" warning)
+- ✅ Balance fields show 0 or your current balance
 
 ---
 

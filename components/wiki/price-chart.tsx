@@ -13,7 +13,7 @@ import type { Address } from 'viem'
 
 // Import TradingView Lightweight Charts
 // npm install lightweight-charts
-import { createChart, ColorType, IChartApi, ISeriesApi } from 'lightweight-charts'
+import { createChart, ColorType } from 'lightweight-charts'
 
 interface PriceChartProps {
   poolAddress: Address
@@ -24,10 +24,10 @@ type TimeInterval = '5m' | '15m' | '1h' | '4h' | '1d'
 
 export function PriceChart({ poolAddress, tokenSymbol }: PriceChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null)
-  const chartRef = useRef<IChartApi | null>(null)
-  const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
+  const chartRef = useRef<ReturnType<typeof createChart> | null>(null)
+  const candleSeriesRef = useRef<any>(null)
 
-  const [interval, setInterval] = useState<TimeInterval>('1h')
+  const [interval, setTimeInterval] = useState<TimeInterval>('1h')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -122,8 +122,8 @@ export function PriceChart({ poolAddress, tokenSymbol }: PriceChartProps) {
     loadData()
 
     // Auto-refresh every 30 seconds
-    const interval_id = setInterval(loadData, 30000)
-    return () => clearInterval(interval_id)
+    const refreshInterval = setInterval(loadData, 30000)
+    return () => clearInterval(refreshInterval)
   }, [poolAddress, interval])
 
   return (
@@ -137,7 +137,7 @@ export function PriceChart({ poolAddress, tokenSymbol }: PriceChartProps) {
                 key={t}
                 size="sm"
                 variant={interval === t ? 'default' : 'outline'}
-                onClick={() => setInterval(t)}
+                onClick={() => setTimeInterval(t)}
               >
                 {t.toUpperCase()}
               </Button>

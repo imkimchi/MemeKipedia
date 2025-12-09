@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { uploadSnapshot } from '@/lib/ipfs'
 import { SnapshotData } from '@/lib/types'
-import { deployMRC20Token } from '@/lib/memecore/token-deployer'
+import { deployTokenWithBondingCurve } from '@/lib/memecore/token-deployer'
 import { DEFAULT_INITIAL_SUPPLY, DEFAULT_NETWORK } from '@/lib/memecore/config'
 
 export async function POST(request: NextRequest) {
@@ -35,8 +35,8 @@ export async function POST(request: NextRequest) {
 
     if (shouldDeployToken) {
       try {
-        console.log(`Deploying token for wiki: ${title} (${ticker})`)
-        const deployment = await deployMRC20Token({
+        console.log(`Deploying token with bonding curve for wiki: ${title} (${ticker})`)
+        const deployment = await deployTokenWithBondingCurve({
           name: title,
           symbol: ticker, // Use user-provided ticker
           logoURI: logo || 'https://memekipedia.com/default-logo.png', // Use wiki logo or default
@@ -51,9 +51,12 @@ export async function POST(request: NextRequest) {
           token_supply: deployment.initialSupply,
           deploy_tx_hash: deployment.transactionHash,
           token_network: deployment.network,
+          bonding_curve_address: deployment.bondingCurveAddress, // NEW: Store bonding curve address
         }
 
         console.log(`Token deployed: ${deployment.tokenAddress}`)
+        console.log(`Bonding curve deployed: ${deployment.bondingCurveAddress}`)
+        console.log(`✅ Trading enabled immediately!`)
       } catch (tokenError) {
         console.error('Token deployment failed:', tokenError)
         // Continue with wiki creation even if token deployment fails

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { useAccount } from 'wagmi'
 import { useEffect } from 'react'
@@ -21,8 +22,8 @@ export function Navbar() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center">
-            <Link href="/" className="text-2xl font-bold text-[#a855f7]">
-              Memekipedia
+            <Link href="/">
+              <Image src="/logo-new.png" alt="Memekipedia" width={150} height={40} />
             </Link>
             <div className="ml-10 flex items-baseline space-x-4">
               <Link

@@ -116,7 +116,7 @@ export default function EditWikiPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-8xl px-4 py-16 sm:px-6 lg:px-8">
         <Skeleton className="h-12 w-64" />
         <Skeleton className="mt-8 h-96 w-full" />
       </div>
@@ -128,7 +128,7 @@ export default function EditWikiPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-8xl px-4 py-16 sm:px-6 lg:px-8">
       <h1 className="text-3xl font-semibold text-slate-100">Edit Wiki</h1>
 
       <Card className="mt-8">
@@ -137,34 +137,8 @@ export default function EditWikiPage() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-300">Title</label>
-            <Input
-              type="text"
-              placeholder="Enter wiki title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-300">Category</label>
-            <CategoryFilter value={category} onChange={setCategory} />
-          </div>
-
-          <div>
             <label className="mb-2 block text-sm font-medium text-slate-300">Content</label>
             <TiptapEditor content={content} onChange={setContent} />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-300">Media (Logo/Image)</label>
-            <MediaUploadArea
-              value={logoCid}
-              onUpload={(cid, filename) => {
-                setLogoCid(cid)
-                console.log('Uploaded:', filename, 'CID:', cid)
-              }}
-            />
           </div>
 
           <div className="flex gap-4">

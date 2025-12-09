@@ -21,6 +21,7 @@ export interface Wiki {
   token_supply?: string | null
   deploy_tx_hash?: string | null
   token_network?: string | null
+  bonding_curve_address?: string | null // Bonding curve for instant trading
 }
 
 export interface SnapshotData {

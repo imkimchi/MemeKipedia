@@ -29,6 +29,44 @@ const MRC20_ABI = [
 // Then copy from: contracts/artifacts/contracts/MRC20Token.sol/MRC20Token.json
 const MRC20_BYTECODE = process.env.MRC20_BYTECODE || '0x'
 
+// NativeBondingCurve Contract Bytecode (uses native M)
+const NATIVE_BONDING_CURVE_BYTECODE = process.env.NATIVE_BONDING_CURVE_BYTECODE || '0x'
+
+// NativeBondingCurve ABI (constructor) - NO M token address needed!
+const NATIVE_BONDING_CURVE_ABI = [
+  {
+    inputs: [
+      { name: '_wikiToken', type: 'address' },
+      { name: '_basePrice', type: 'uint256' },
+      { name: '_slope', type: 'uint256' },
+      { name: 'initialOwner', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
+    type: 'constructor',
+  },
+] as const
+
+// ERC20 Transfer ABI
+const ERC20_TRANSFER_ABI = [
+  {
+    inputs: [
+      { name: 'to', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    name: 'transfer',
+    outputs: [{ type: 'bool' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'account', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const
+
 export interface TokenDeploymentParams {
   name: string
   symbol?: string // Auto-generated from name if not provided
@@ -47,6 +85,8 @@ export interface TokenDeploymentResult {
   initialSupply: string
   network: MemecoreNetwork
   explorerUrl: string
+  bondingCurveAddress?: string // Optional bonding curve address
+  bondingCurveTxHash?: string // Optional bonding curve deployment tx
 }
 
 /**
@@ -123,8 +163,9 @@ export async function deployMRC20Token(
     console.log(`Balance: ${balance.toString()} wei`)
 
     if (balance === 0n) {
+      const faucetInfo = 'faucetUrl' in networkConfig ? ` from: ${networkConfig.faucetUrl}` : ''
       throw new Error(
-        `Insufficient balance. Please fund your wallet with testnet M tokens from: ${networkConfig.faucetUrl}`
+        `Insufficient balance. Please fund your wallet with testnet M tokens${faucetInfo}`
       )
     }
 
@@ -163,6 +204,170 @@ export async function deployMRC20Token(
     }
   } catch (error) {
     console.error('Token deployment failed:', error)
+    throw error
+  }
+}
+
+/**
+ * Deploy MRC-20 token WITH bonding curve (like pump.fun)
+ * This enables instant trading without liquidity pools
+ */
+export async function deployTokenWithBondingCurve(
+  params: TokenDeploymentParams
+): Promise<TokenDeploymentResult> {
+  const network = params.network || DEFAULT_NETWORK
+  const networkConfig = getNetworkConfig(network)
+
+  // Validate private key
+  const privateKey = process.env.MEMECORE_PRIVATE_KEY
+  if (!privateKey || !privateKey.startsWith('0x')) {
+    throw new Error('MEMECORE_PRIVATE_KEY not configured in environment variables')
+  }
+
+  // Validate bytecodes
+  if (!MRC20_BYTECODE || MRC20_BYTECODE === '0x') {
+    throw new Error('MRC20_BYTECODE not configured')
+  }
+  if (!NATIVE_BONDING_CURVE_BYTECODE || NATIVE_BONDING_CURVE_BYTECODE === '0x') {
+    throw new Error('NATIVE_BONDING_CURVE_BYTECODE not configured')
+  }
+
+  // Prepare deployment parameters
+  const tokenName = params.name
+  const tokenSymbol = params.symbol || sanitizeTokenSymbol(params.name)
+  const initialSupply = BigInt(params.initialSupply || DEFAULT_INITIAL_SUPPLY)
+  const logoURI = params.logoURI
+  const description = params.description || generateTokenDescription(params.name, params.category || 'General')
+
+  // Create viem chain config
+  const memecoreChain = defineChain({
+    id: networkConfig.chainId,
+    name: networkConfig.name,
+    nativeCurrency: {
+      name: 'Memecore',
+      symbol: networkConfig.symbol,
+      decimals: 18,
+    },
+    rpcUrls: {
+      default: { http: [networkConfig.rpcUrl] },
+      public: { http: [networkConfig.rpcUrl] },
+    },
+    blockExplorers: {
+      default: {
+        name: 'Explorer',
+        url: networkConfig.explorerUrl,
+      },
+    },
+  })
+
+  // Setup account and clients
+  const account = privateKeyToAccount(privateKey as `0x${string}`)
+
+  const walletClient = createWalletClient({
+    account,
+    chain: memecoreChain,
+    transport: http(),
+  })
+
+  const publicClient = createPublicClient({
+    chain: memecoreChain,
+    transport: http(),
+  })
+
+  try {
+    console.log(`Deploying token with bonding curve: ${tokenName} (${tokenSymbol})`)
+    console.log(`Network: ${networkConfig.name}`)
+    console.log(`Deployer: ${account.address}`)
+
+    // Step 1: Deploy token
+    console.log('\n1️⃣ Deploying MRC-20 token...')
+    const tokenHash = await walletClient.deployContract({
+      abi: MRC20_ABI,
+      bytecode: MRC20_BYTECODE as `0x${string}`,
+      args: [tokenName, tokenSymbol, initialSupply, logoURI, description, account.address],
+    })
+
+    console.log(`Token tx: ${tokenHash}`)
+    const tokenReceipt = await publicClient.waitForTransactionReceipt({ hash: tokenHash })
+
+    if (tokenReceipt.status !== 'success') {
+      throw new Error('Token deployment failed')
+    }
+
+    const tokenAddress = tokenReceipt.contractAddress
+    if (!tokenAddress) {
+      throw new Error('Token address not found')
+    }
+
+    console.log(`✅ Token deployed: ${tokenAddress}`)
+
+    // Step 2: Deploy NATIVE bonding curve (uses native M token)
+    console.log('\n2️⃣ Deploying native bonding curve (uses native M)...')
+
+    // Bonding curve parameters
+    const BASE_PRICE = BigInt('10000000000') // 0.00000001 M per token (very cheap start)
+    const SLOPE = BigInt('1000000000') // Increase per token
+
+    const curveHash = await walletClient.deployContract({
+      abi: NATIVE_BONDING_CURVE_ABI,
+      bytecode: NATIVE_BONDING_CURVE_BYTECODE as `0x${string}`,
+      args: [tokenAddress, BASE_PRICE, SLOPE, account.address], // No M token address!
+    })
+
+    console.log(`Bonding curve tx: ${curveHash}`)
+    const curveReceipt = await publicClient.waitForTransactionReceipt({ hash: curveHash })
+
+    if (curveReceipt.status !== 'success') {
+      throw new Error('Bonding curve deployment failed')
+    }
+
+    const bondingCurveAddress = curveReceipt.contractAddress
+    if (!bondingCurveAddress) {
+      throw new Error('Bonding curve address not found')
+    }
+
+    console.log(`✅ Bonding curve deployed: ${bondingCurveAddress}`)
+
+    // Step 3: Transfer all tokens to bonding curve
+    console.log('\n3️⃣ Transferring tokens to bonding curve...')
+
+    // Get actual token balance (in wei) from contract
+    // The contract has already converted initialSupply to wei, so we need to get the real balance
+    const tokenBalance = await publicClient.readContract({
+      address: tokenAddress,
+      abi: ERC20_TRANSFER_ABI,
+      functionName: 'balanceOf',
+      args: [account.address],
+    }) as bigint
+
+    console.log(`Deployer balance: ${tokenBalance.toString()} wei`)
+
+    const transferHash = await walletClient.writeContract({
+      address: tokenAddress,
+      abi: ERC20_TRANSFER_ABI,
+      functionName: 'transfer',
+      args: [bondingCurveAddress, tokenBalance], // Transfer actual balance, not initialSupply!
+    })
+
+    console.log(`Transfer tx: ${transferHash}`)
+    await publicClient.waitForTransactionReceipt({ hash: transferHash })
+
+    console.log(`✅ Tokens transferred to bonding curve`)
+    console.log(`\n🎉 Trading is now enabled!`)
+
+    return {
+      tokenAddress,
+      transactionHash: tokenHash,
+      tokenName,
+      tokenSymbol,
+      initialSupply: initialSupply.toString(),
+      network,
+      explorerUrl: `${networkConfig.explorerUrl}address/${tokenAddress}`,
+      bondingCurveAddress,
+      bondingCurveTxHash: curveHash,
+    }
+  } catch (error) {
+    console.error('Deployment failed:', error)
     throw error
   }
 }

@@ -14,6 +14,9 @@ const config: Config = {
         background: '#0f172a',
         surface: '#1e293b',
       },
+      fontFamily: {
+        sans: ['Pretendard', 'sans-serif'],
+      },
     },
   },
   plugins: [],

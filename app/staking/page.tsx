@@ -94,8 +94,8 @@ export default function StakingPage() {
     return null
   }
 
-  const stakedAmount = stakeData ? stakeData[0] : BigInt(0)
-  const unlockTime = stakeData ? stakeData[2] : BigInt(0)
+  const stakedAmount = stakeData ? (stakeData as readonly [bigint, bigint, bigint])[0] : BigInt(0)
+  const unlockTime = stakeData ? (stakeData as readonly [bigint, bigint, bigint])[2] : BigInt(0)
   const isLocked = unlockTime > BigInt(Math.floor(Date.now() / 1000))
 
   return (
@@ -109,7 +109,7 @@ export default function StakingPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-[#a855f7]">
-              {balance ? formatEther(balance) : '0'} M
+              {balance ? formatEther(balance as bigint) : '0'} M
             </p>
           </CardContent>
         </Card>
@@ -173,12 +173,12 @@ export default function StakingPage() {
             <div className="flex items-center justify-between">
               <span className="text-sm text-slate-400">Pending Rewards:</span>
               <span className="text-lg font-semibold text-[#98fce5]">
-                {pendingRewards ? formatEther(pendingRewards) : '0'} M
+                {pendingRewards ? formatEther(pendingRewards as bigint) : '0'} M
               </span>
             </div>
             <Button
               onClick={handleClaim}
-              disabled={!pendingRewards || pendingRewards === BigInt(0) || isClaiming}
+              disabled={!pendingRewards || (pendingRewards as bigint) === BigInt(0) || isClaiming}
               className="w-full"
             >
               {isClaiming ? 'Claiming...' : 'Claim Rewards'}

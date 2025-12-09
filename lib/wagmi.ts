@@ -1,6 +1,29 @@
 import { connectorsForWallets } from '@rainbow-me/rainbowkit'
 import { createConfig, http } from 'wagmi'
 import { mainnet, polygon, optimism, arbitrum, base } from 'wagmi/chains'
+import { defineChain } from 'viem'
+
+// Define MemeCore Insectarium Testnet
+const memecoreInsectarium = defineChain({
+  id: 43522,
+  name: 'MemeCore Insectarium Testnet',
+  nativeCurrency: {
+    decimals: 18,
+    name: 'M',
+    symbol: 'M',
+  },
+  rpcUrls: {
+    default: { http: ['https://rpc.insectarium.memecore.net/'] },
+    public: { http: ['https://rpc.insectarium.memecore.net/'] },
+  },
+  blockExplorers: {
+    default: {
+      name: 'MemeCore Explorer',
+      url: 'https://insectarium.blockscout.memecore.com'
+    },
+  },
+  testnet: true,
+})
 import {
   argentWallet,
   bitgetWallet,
@@ -85,8 +108,9 @@ const connectors = connectorsForWallets(
 
 export const config = createConfig({
   connectors,
-  chains: [mainnet, polygon, optimism, arbitrum, base],
+  chains: [memecoreInsectarium, mainnet, polygon, optimism, arbitrum, base],
   transports: {
+    [memecoreInsectarium.id]: http(),
     [mainnet.id]: http(),
     [polygon.id]: http(),
     [optimism.id]: http(),
